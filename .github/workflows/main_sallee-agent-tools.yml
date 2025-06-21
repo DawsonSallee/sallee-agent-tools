@@ -12,14 +12,11 @@ on:
 
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
-  PYTHON_VERSION: '3.11' # set this to the python version to use (supports 3.6, 3.7, 3.8)
+  PYTHON_VERSION: '3.11' # set this to the python version to use
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read #This is required for actions/checkout
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,11 +30,21 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
+      
+      # =================================================================
+      # == NEW STEP ADDED HERE TO FIX THE 'pyodbc' INSTALLATION ERROR ==
+      # =================================================================
+      - name: Install ODBC Driver and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unixodbc-dev
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
 
       - name: Install dependencies
         run: pip install -r requirements.txt
-
-      # Optional: Add step to run tests here
 
       - name: Zip artifact for deployment
         run: zip release.zip ./* -r
@@ -54,9 +61,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
-
+      id-token: write # This is required for requesting the JWT
+    
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
@@ -66,18 +72,21 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip     
         
+      # ===========================================================
+      # == LOGIN STEP CORRECTED TO USE MODERN, PASSWORD-LESS OIDC ==
+      # ===========================================================
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_330CD28847404624A93A5896BC161F0D }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_1575CBF5C29E40FCAF3F4EF02943FF3F }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_91667B75A9C84E688B2F047EB125EDCA }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # ===============================================================
+      # == DEPLOY STEP CORRECTED TO POINT TO THE CORRECT ZIP PACKAGE ==
+      # ===============================================================
       - name: 'Deploy to Azure Functions'
         uses: Azure/functions-action@v1
         id: deploy-to-function
         with:
           app-name: 'sallee-agent-tools'
           slot-name: 'Production'
-          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-          
+          package: 'release.zip'
