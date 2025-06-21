@@ -1,4 +1,5 @@
-# This is the final, definitive workflow using a "Run From Package" strategy.
+# This is the final, definitive workflow. It uses a full build environment
+# and creates a self-contained package for deployment.
 
 name: Build and deploy Python project to Azure Function App - sallee-agent-tools
 
@@ -14,29 +15,42 @@ env:
 
 jobs:
   build:
+    # Use the standard, full-featured Ubuntu runner which has all common tools like 'zip'
     runs-on: ubuntu-latest
-    container: mcr.microsoft.com/azure-functions/python:4-python3.11
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ========================================================================
-      # == THE FINAL, CRITICAL FIX: Install dependencies INTO the package     ==
-      # == This creates a self-contained application for deployment.          ==
-      # ========================================================================
+      # Set up the correct Python version on the runner
+      - name: Setup Python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      # Manually install the system-level ODBC driver, which is needed for pyodbc
+      - name: Install ODBC Driver and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unixodbc-dev
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+
+      # Install Python dependencies into a local folder that will be zipped
       - name: Install dependencies into a deployable package
         run: pip install --target=".python_packages/lib/site-packages" -r requirements.txt
 
+      # Zip the application code AND the installed dependencies together
       - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+        run: zip -r release.zip .
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: |
-            release.zip
+          path: release.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -49,9 +63,6 @@ jobs:
         with:
           name: python-app
 
-      - name: Unzip artifact for deployment
-        run: unzip release.zip     
-        
       - name: 'Login to Azure'
         uses: azure/login@v2
         with:
@@ -59,6 +70,7 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_1575CBF5C29E40FCAF3F4EF02943FF3F }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_91667B75A9C84E688B2F047EB125EDCA }}
 
+      # Deploy the self-contained package. Azure will not run pip install.
       - name: 'Deploy to Azure Functions'
         uses: Azure/functions-action@v1
         id: deploy-to-function
