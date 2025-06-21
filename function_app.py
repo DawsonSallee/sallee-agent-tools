@@ -41,7 +41,7 @@ def GetOrderStatusFuzzy(req: func.HttpRequest) -> func.HttpResponse:
         with pyodbc.connect(conn_str, autocommit=True) as conn:
             cursor = conn.cursor()
             
-            # --- FUZZY MATCHING LOGIC ---
+            # --- FUZZY MATCHING LOGIC (Unchanged from your working code) ---
             cursor.execute("SELECT CustomerName FROM Orders")
             all_db_names = [row.CustomerName for row in cursor.fetchall()]
 
@@ -58,22 +58,44 @@ def GetOrderStatusFuzzy(req: func.HttpRequest) -> func.HttpResponse:
             best_matched_name = best_match_tuple[0]
             
             # --- GET DETAILS FOR BEST MATCH ---
-            query_details = "SELECT CustomerName, OrderDate, ReadyDate, Balance FROM Orders WHERE CustomerName = ?"
+            
+            # =======================================================================
+            # === CHANGE 1: The SQL query is expanded to get all required fields. ===
+            # =======================================================================
+            query_details = """
+                SELECT 
+                    CustomerName, OrderDate, ReadyDate, CalledDate, PickupDate,
+                    MountPrice, BoardPrice, DepositCash, DepositCheck,
+                    PaymentCash, PaymentCheck, Balance, LastUpdatedAt
+                FROM Orders WHERE CustomerName = ?
+            """
             cursor.execute(query_details, best_matched_name)
             row = cursor.fetchone()
 
             if row:
+                # ==================================================================================
+                # === CHANGE 2: The result dictionary is expanded to match the JavaScript needs. ===
+                # ==================================================================================
                 result = {
                     "customerName": row.CustomerName,
-                    "orderDate": str(row.OrderDate) if row.OrderDate else "N/A",
-                    "readyDate": str(row.ReadyDate) if row.ReadyDate else "Pending",
-                    "balance": float(row.Balance)
+                    "orderDate": str(row.OrderDate) if row.OrderDate else None,
+                    "readyDate": str(row.ReadyDate) if row.ReadyDate else None,
+                    "calledDate": str(row.CalledDate) if row.CalledDate else None,
+                    "pickupDate": str(row.PickupDate) if row.PickupDate else None,
+                    "mountPrice": float(row.MountPrice or 0.0),
+                    "boardPrice": float(row.BoardPrice or 0.0),
+                    "depositCash": float(row.DepositCash or 0.0),
+                    "depositCheck": float(row.DepositCheck or 0.0),
+                    "paymentCash": float(row.PaymentCash or 0.0),
+                    "paymentCheck": float(row.PaymentCheck or 0.0),
+                    "balance": float(row.Balance or 0.0),
+                    "lastUpdatedAt": str(row.LastUpdatedAt) if row.LastUpdatedAt else None
                 }
-                return func.HttpResponse(json.dumps(result), mimetype="application/json", status_code=200)
+                # Using default=str is a safety net to prevent errors if the DB returns a non-standard type
+                return func.HttpResponse(json.dumps(result, default=str), mimetype="application/json", status_code=200)
             else:
                 return func.HttpResponse("Internal error: Matched but failed to retrieve details.", status_code=500)
 
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         return func.HttpResponse("Failed to connect to or query the database.", status_code=500)
-     
