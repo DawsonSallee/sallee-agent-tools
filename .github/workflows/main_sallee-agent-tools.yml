@@ -29,7 +29,6 @@ jobs:
           python -m venv venv
           source venv/bin/activate
       
-      # == FIX 1: INSTALLS THE SYSTEM-LEVEL ODBC DRIVER ==
       - name: Install ODBC Driver and dependencies
         run: |
           sudo apt-get update
@@ -68,15 +67,16 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip     
         
-      # == FIX 2: USES THE CORRECT OIDC LOGIN METHOD WITH REPOSITORY SECRETS ==
+      # =================================================================
+      # == THIS IS THE FINAL, CORRECTED LOGIN STEP USING YOUR REAL SECRETS ==
+      # =================================================================
       - name: 'Login to Azure'
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_330CD28847404624A93A5896BC161F0D }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_1575CBF5C29E40FCAF3F4EF02943FF3F }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_91667B75A9C84E688B2F047EB125EDCA }}
 
-      # == FIX 3: DEPLOYS THE CORRECT ZIPPED PACKAGE ==
       - name: 'Deploy to Azure Functions'
         uses: Azure/functions-action@v1
         id: deploy-to-function
