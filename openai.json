@@ -1,0 +1,58 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Sallee Agent Tools",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/GetOrderStatusFuzzy": {
+      "get": {
+        "summary": "Get customer order status with fuzzy name matching",
+        "description": "Retrieves the current status of a customer's order by providing their full name. The tool can handle common spelling mistakes in the name.",
+        "operationId": "GetOrderStatusFuzzy",
+        "parameters": [
+          {
+            "name": "customer_name",
+            "in": "query",
+            "required": true,
+            "description": "The full name of the customer whose order status you want to check, e.g., 'Jon Doe'.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved the order status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "customerName": {
+                      "type": "string"
+                    },
+                    "orderDate": {
+                      "type": "string"
+                    },
+                    "readyDate": {
+                      "type": "string"
+                    },
+                    "balance": {
+                      "type": "number",
+                      "format": "float"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No order found for a name similar to the input."
+          }
+        }
+      }
+    }
+  },
+  "components": {}
+}
