@@ -5,9 +5,9 @@ import json
 import pyodbc
 from rapidfuzz import process, fuzz # Import the fuzzy matching library
 
-app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
+app = func.FunctionApp()
 
-@app.route(route="GetOrderStatusFuzzy")
+@app.route(route="GetOrderStatusFuzzy", auth_level=func.AuthLevel.ANONYMOUS)
 def GetOrderStatusFuzzy(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Fuzzy Order Status function processed a request.')
 
@@ -76,5 +76,4 @@ def GetOrderStatusFuzzy(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         return func.HttpResponse("Failed to connect to or query the database.", status_code=500)
-     
      
