@@ -76,4 +76,5 @@ def GetOrderStatusFuzzy(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         return func.HttpResponse("Failed to connect to or query the database.", status_code=500)
-    
+     
+     
